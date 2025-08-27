@@ -103,10 +103,28 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("Welcome %s!", claims.Username)))
 }
+
+// corsMiddleware adds CORS headers so React (localhost:3000) can call the API
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+
+		// Handle preflight request quickly
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	jwtKey = loadSecret()
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/welcome", welcomeHandler)
+	http.Handle("/login", corsMiddleware(http.HandlerFunc(loginHandler)))
+	http.Handle("/welcome", corsMiddleware(http.HandlerFunc(welcomeHandler)))
 
 	port := "8080"
 	fmt.Println("Server starting at :", port)
